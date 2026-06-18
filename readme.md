@@ -1,97 +1,69 @@
-# Instructions
+# ROS1 CI — Checkpoint 24 Task 1
 
-## Jenkins Setup & Start
+## Overview
+Jenkins CI pipeline that triggers on GitHub Pull Requests, builds a Docker image with ROS Noetic + TortoiseBot, runs Gazebo simulation + waypoints tests inside the container, and reports results back to GitHub.
 
-### First session only
+---
+
+## Repository Structure
+
+| File | Purpose |
+|---|---|
+| `Dockerfile` | ROS Noetic + Gazebo + waypoints image |
+| `Jenkinsfile` | Pipeline: build image → run Gazebo → run tests |
+| `jenkins-infra/scripts/jenkins_bootstrap.sh` | Installs + starts Jenkins each session |
+| `jenkins-infra/scripts/install_plugins.sh` | Installs Jenkins plugins (run once) |
+| `jenkins-infra/jenkins/plugins.txt` | Pinned plugin list for Jenkins 2.504.3 |
+
+---
+
+## Docker Image
+
+DockerHub: `tesarect/karthikeyanbalasubramanian-cp22:tortoisebot-noetic-gazebo-v1`
+
 ```bash
-# 1. Start Jenkins (also installs Java + downloads WAR if missing)
+# Build
 cd ~/simulation_ws/src/ros1_ci
-bash jenkins-infra/scripts/jenkins_bootstrap.sh
+docker build -t tortoisebot-noetic-gazebo:latest .
 
-# 2. Install plugins (only needed once — skipped automatically on future runs)
-bash jenkins-infra/scripts/install_plugins.sh
-
-# 3. Get your browser URL
-jenkins_address
-
-# 4. Get the initial admin password
-cat ~/webpage_ws/jenkins/secrets/initialAdminPassword
-```
-Open the Construct URL in your browser and complete the Jenkins setup wizard.
-
-### Every session after (Jenkins restart)
-```bash
-# Kill previous Jenkins process first (get PID from jenkins_pid_url.txt)
-kill $(cat ~/webpage_ws/jenkins/jenkins.pid)
-
-# Then restart
-cd ~/simulation_ws/src/ros1_ci
-bash jenkins-infra/scripts/jenkins_bootstrap.sh
-```
-Jenkins URL for the new session: run `jenkins_address` again (URL changes each session).
-
-### Restart Jenkins mid-session (after config changes)
-```bash
-kill $(cat ~/webpage_ws/jenkins/jenkins.pid)
-cd ~/simulation_ws/src/ros1_ci
-bash jenkins-infra/scripts/jenkins_bootstrap.sh
+# Tag and push
+docker tag tortoisebot-noetic-gazebo:latest tesarect/karthikeyanbalasubramanian-cp22:tortoisebot-noetic-gazebo-v1
+docker push tesarect/karthikeyanbalasubramanian-cp22:tortoisebot-noetic-gazebo-v1
 ```
 
 ---
 
-## build notiec gazebo
-```bash
-cd ~/simulation_ws/src/
-# docker build -f ros1_ci/Dockerfile -t tortoisebot-noetic-gazebo .
-docker build -t tortoisebot-noetic-gazebo:latest .
-```
+## Instructions (For Evaluators)
 
-## run gazebo through container
-Start the container
-```bash
-xhost +local:docker
+### Prerequisites
+- The Construct cloud machine with ROS Noetic workspace at `~/simulation_ws`
+- Docker installed
+- GitHub repo `ros1_ci` with this code
 
-docker run --rm \
-  --name ci_tortsim \
-  -e DISPLAY=$DISPLAY \
-  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-  tortoisebot-noetic-gazebo \
-  roslaunch tortoisebot_gazebo tortoisebot_playground.launch
-```
-start the waypoint action server
-```bash
- docker exec -it ci_tortoise_sim bash
-root@0c0bd1e11453:/catkin_ws/src# rosrun tortoisebot_waypoints tortoisebot_action_server.py
-[INFO] [1781595375.957848, 1118.782000]: Action server started
-```
+### Step 1 — Start Jenkins
 
-start the fail test case
 ```bash
-$ docker exec -it ci_tortoise_sim bash
-root@0c0bd1e11453:/catkin_ws/src# rostest tortoisebot_waypoints waypoints_test.test --reuse-master
-... logging to /root/.ros/log/rostest-0c0bd1e11453-853.log
-[ROSUNIT] Outputting test results to /root/.ros/test_results/tortoisebot_waypoints/rostest-test_waypoints_test.xml
-[Testcase: testtest_waypoints] ... ok
-......
-```
-
-start the fail test case
-```bash
-$ docker exec -it ci_tortoise_sim bash
-root@0c0bd1e11453:/catkin_ws/src# rostest tortoisebot_waypoints waypoints_test.test --reuse-master
-... logging to /root/.ros/log/rostest-0c0bd1e11453-853.log
-[ROSUNIT] Outputting test results to /root/.ros/test_results/tortoisebot_waypoints/rostest-test_waypoints_test.xml
-[Testcase: testtest_waypoints] ... ok
-......
-```
-
-## docker push
-build locally as
 cd ~/simulation_ws/src/ros1_ci
-docker build -t tortoisebot-noetic-gazebo:latest .
-then tag it and push it
-docker tag tortoisebot-noetic-gazebo:latest tesarect/karthikeyanbalasubramanian-cp22:tortoisebot-noetic-gazebo-v1
-docker push tesarect/karthikeyanbalasubramanian-cp22:tortoisebot-noetic-gazebo-v1
+bash jenkins-infra/scripts/jenkins_bootstrap.sh
+```
 
-for later usage just pull it
-docker pull tesarect/karthikeyanbalasubramanian-cp22:tortoisebot-noetic-gazebo-v1
+Get the browser URL:
+```bash
+jenkins_address
+```
+
+Open the URL in your browser and log in with the admin credentials.
+
+### Step 2 — Trigger a Pull Request
+
+On GitHub → `ros1_ci` repo → **Add file → Create new file** on a new branch → open a Pull Request against master.
+
+Jenkins will trigger automatically within 1 minute.
+
+### Step 3 — Verify Build
+
+- Open Jenkins in browser → `ros1-ci` pipeline → click the PR build
+- **Console Output** shows Gazebo launching and waypoints test running
+- Build result: **SUCCESS**
+
+---
