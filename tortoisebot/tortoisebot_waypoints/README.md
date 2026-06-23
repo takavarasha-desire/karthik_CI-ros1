@@ -46,6 +46,15 @@ rostest tortoisebot_waypoints waypoints_test.test --reuse-master
 
 ## Switching Between Passing and Failing Conditions
 
+Make the changes on the main (to `.test` file) and push it to construct or directly on the constructs main.
+
+Once the pass or fail is switched based on the scenario, make a dummy commit on the branch to trigger the pipeline
+```bash
+git checkout jenkins-trigger
+git commit --allow-empty -m "trigger fail case"
+git push origin jenkins-trigger
+```
+
 Open `test/waypoints_test.test` in an editor.
 
 ### Passing conditions (default)
